@@ -38,7 +38,7 @@ RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git && \
 	cp -rf launch_ROS2/ launch/
 WORKDIR /ros2_ws
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && \
-	colcon build --packages-select livox_ros_driver2 \
+	colcon build --packages-select livox_interfaces livox_ros_driver2 \
 	--cmake-args -DCMAKE_BUILD_TYPE=Release -DROS_EDITION=ROS2 -DHUMBLE_ROS=humble"
 
 WORKDIR /ros2_ws/src

@@ -1,0 +1,26 @@
+services:
+
+  # --- SLAM: mapping mode ---
+  slam-mapping:
+    build: .
+    network_mode: host
+    environment:
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    volumes:
+      - ./config:/ros2_ws/config
+      - ./launch:/ros2_ws/launch
+    command: ros2 launch /ros2_ws/launch/slam_mapping.launch.py
+    restart: unless-stopped
+
+  # --- localization: navigation with saved map ---
+  slam-localization:
+    build: .
+    network_mode: host
+    environment:
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    volumes:
+      - ./config:/ros2_ws/config
+      - ./launch:/ros2_ws/launch
+    command: ros2 launch /ros2_ws/launch/slam_localization.launch.py
+    restart: unless-stopped
+    profiles: ['localization']

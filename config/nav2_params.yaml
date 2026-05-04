@@ -7,6 +7,8 @@ bt_navigator:
     default_server_timeout: 20
     navigators: ['navigate_to_pose', 'navigate_through_poses']
     navigate_to_pose:
+      plugin: "nav2_bt_navigator/NavigateToPoseNavigator"
+    navigate_through_poses:
       plugin: "nav2_bt_navigator/NavigateThroughPosesNavigator"
       plugin_lib_names:
         - nav2_compute_path_to_pose_action_bt_node

@@ -1,13 +1,13 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import SetEnvironmentVariable
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
     return LaunchDescription([
 
+        # ROS2 uses domain 1; Unitree SDK uses domain 0 on eth0 — keeps them isolated
+        SetEnvironmentVariable('ROS_DOMAIN_ID', '1'),
         # restrict CycloneDDS to loopback to isolate from Go2 DDS network
         SetEnvironmentVariable(
             'CYCLONEDDS_URI',
@@ -15,8 +15,21 @@ def generate_launch_description():
         ),
 
         # -- 1. Livox MID360 driver
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource('/ros2_ws/launch/livox_mid360_launch.py')
+        Node(
+            package='livox_ros_driver2',
+            executable='livox_ros_driver2_node',
+            name='livox_lidar_publisher',
+            output='screen',
+            parameters=[{
+                'xfer_format': 1,
+                'multi_topic': 0,
+                'data_src': 0,
+                'publish_freq': 10.0,
+                'output_data_type': 0,
+                'frame_id': 'livox_frame',
+                'user_config_path': '/ros2_ws/config/MID360_config.json',
+                'cmdline_input_bd_code': 'livox0000000001',
+            }]
         ),
 
         # -- 2. FAST-LIO (LiDAR odometry)
@@ -82,6 +95,7 @@ def generate_launch_description():
                 'Icp/VoxelSize': '0.1',
                 'Icp/MaxCorrespondenceDistance': '1.0',
 
+                'database_path': '/ros2_ws/map/rtabmap.db',
                 'Mem/IncrementalMemory': 'false',
                 'Mem/InitWMWithAllNodes': 'true',
 
@@ -94,15 +108,59 @@ def generate_launch_description():
             ],
         ),
 
-        # -- 6. Nav2 (rtabmap publishes /map, no separate map server needed)
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                FindPackageShare('nav2_bringup'), '/launch/navigation_launch.py'
-            ]),
-            launch_arguments={
-                'params_file': '/ros2_ws/config/nav2_params.yaml',
-                'use_sim_time': 'false',
-            }.items(),
+        # -- 6. Nav2 (individual nodes so bt_navigator's /goal_pose subscription
+        #    can be remapped — otherwise bt_navigator auto-navigates the moment
+        #    any node (waypoint_manager, Foxglove) publishes to /goal_pose)
+        Node(
+            package='nav2_controller',
+            executable='controller_server',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+        ),
+        Node(
+            package='nav2_smoother',
+            executable='smoother_server',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+        ),
+        Node(
+            package='nav2_planner',
+            executable='planner_server',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+        ),
+        Node(
+            package='nav2_behaviors',
+            executable='behavior_server',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+        ),
+        Node(
+            package='nav2_bt_navigator',
+            executable='bt_navigator',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+            remappings=[('goal_pose', '_goal_pose_disabled')],
+        ),
+        Node(
+            package='nav2_waypoint_follower',
+            executable='waypoint_follower',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+        ),
+        Node(
+            package='nav2_velocity_smoother',
+            executable='velocity_smoother',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
+            remappings=[('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')],
+        ),
+        Node(
+            package='nav2_lifecycle_manager',
+            executable='lifecycle_manager',
+            name='lifecycle_manager',
+            output='screen',
+            parameters=['/ros2_ws/config/nav2_params.yaml'],
         ),
 
         # -- 7. waypoint manager (click-to-add via /goal_pose, /start_mission service)

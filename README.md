@@ -1,14 +1,52 @@
-# Unitree Go2 SLAM & Waypoint Navigation
+# Unitree Go2 Waypoint Navigation
 
-LiDAR-based SLAM and autonomous waypoint navigation for the Unitree Go2 quadruped robot, using a Livox MID360 LiDAR on a Jetson Orin NX. The entire stack runs inside Docker with no host ROS2 installation required.
+Run SLAM and autonomous waypoint navigation for Unitree Go2, with Foxglove for interactive waypoint assignment. Everything runs inside a single Docker container.
 
-## Hardware
+[![ROS2 Humble](https://img.shields.io/badge/ROS-Humble-blue)](https://docs.ros.org/en/humble)
+[![Ubuntu 22.04](https://img.shields.io/badge/Ubuntu-22.04-orange)](https://releases.ubuntu.com/22.04/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-| Component | Details |
+![Demo](docs/demo.gif)
+
+*Left: RTABMap in Foxglove Studio. Right: Go2 navigating through clicked waypoints.*
+
+---
+
+## Why this project?
+
+Most Go2 navigation projects assume a host ROS2 installed and use the official Unitree SDK with the build-in L1 LiDAR. This project takes a different approach:
+
+- **Single Docker container** — The entire ROS2, SLAM, and Nav2 stack runs in one container on the Jetson Orin NX onboard. No host ROS2 installation needed.
+- **External Livox MID360** — Used external Livox MID360 LiDAR for better SLAM quality in indoor environments.
+- **Foxglove waypoint workflow** — Click waypoints on the live map in Foxglove Studio, then trigger the mission with a single ROS2 service call.
+- **Clean DDS separation** — Unitree SDK's DDS context is isolated from ROS2's, which avoids the library version conflicts that often break this kind of integration.
+
+If you're deploying Nav2 on Go2 with a custom sensor stack inside Docker, this project should help.
+
+
+## Demo
+*TBA* 
+
+
+## System Architecture
+
+<p align="center">
+    <img src="docs/architecture.png" alt="System Architecture" width="500">
+</p>
+
+ROS2 and Unitree SDK each run their own DDS instance on separate domains and network interfaces. They're isolated via `cyclonedds_internal.xml`.
+
+
+## Hardware Requirements
+
+| Layer | Component |
 |-----------|---------|
+| OS | Ubuntu 22.04 (aarch64) |
+| Container | Docker 20.10+ |
 | Robot | Unitree Go2 |
 | LiDAR | Livox MID360 |
 | Compute | NVIDIA Jetson Orin NX (aarch64, Ubuntu 22.04) |
+
 
 ## Software Stack
 
@@ -20,171 +58,109 @@ LiDAR-based SLAM and autonomous waypoint navigation for the Unitree Go2 quadrupe
 | Navigation | [Nav2](https://nav2.ros.org) |
 | Robot control | Unitree SDK2 Python |
 | Visualization | Foxglove Studio (port 8765) |
-| ROS2 distro | Humble (via `ros:humble-ros-base` Docker image) |
+| ROS2 | Humble (via `ros:humble-ros-base` Docker image) |
 
-## Architecture
-
-```
-Livox MID360
-    │ /livox/lidar (PointCloud2)
-    ▼
-livox_ros_driver2
-    │ /cloud_registered (PointCloud2)
-    ▼
-FAST-LIO  ──────────────────────────────── TF: camera_init → body
-    │ /Odometry (3D)
-    ▼
-odom_2d_filter
-    │ /Odometry_2d (2D, z/roll/pitch zeroed)
-    ▼
-RTABMap  ──────────────────────────────── /map (OccupancyGrid)
-    │                                      TF: map → camera_init
-    ▼
-Nav2 (planner + controller + waypoint_follower)
-    │ /cmd_vel
-    ▼
-robot_driver  ──── subprocess ──── unitree_bridge.py
-                   (JSON over stdin)       │
-                                      Unitree SDK2
-                                           │ DDS (eth0, domain 0)
-                                           ▼
-                                       Go2 robot
-```
-
-**DDS isolation:** ROS2 runs on domain 1 with CycloneDDS restricted to loopback (`cyclonedds_internal.xml`). The Unitree SDK runs in a separate subprocess (`unitree_bridge.py`) on domain 0 over `eth0`, avoiding library conflicts between the two CycloneDDS instances.
-
-## Network Setup
-
-Connect the Jetson to the Go2's built-in WiFi access point. The default subnet is `192.168.123.x`.
-
-| Device | IP |
-|--------|----|
-| Jetson (eth0) | `192.168.123.18` |
-| Livox MID360 | `192.168.123.20` |
-
-Update `config/MID360_config.json` if your Jetson IP is different (`host_net_info` fields).
 
 ## Quick Start
 
-### 1. Build the Docker image
+### 1. Clone and build
 
 ```bash
+git clone https://github.com/yehna-kim/unitree-go2-waypoint-nav.git
+cd unitree-go2-waypoint-nav
 docker build -t go2-slam .
 ```
 
-This takes ~20 minutes on first build (compiles Livox-SDK2, FAST-LIO, CycloneDDS, and the Unitree Python SDK).
+The first build takes around 20 minutes (compiles Livox-SDK2, FAST-LIO, CycloneDDS, and Unitree Python SDK).
 
-### 2. Mapping mode — build a map
-
-Drive the robot around the environment to build a map. The map is saved to `./map/rtabmap.db`.
+### 2. Build a map (Mapping mode)
 
 ```bash
 ./run_mapping.sh
 ```
 
-Visualize in Foxglove Studio by connecting to `ws://<jetson-ip>:8765`.
+In a separate terminal, open Foxglove Studio and connect to `ws://<jetson-ip>:8765`. You'll see the LiDAR cloud and the map being built in real time.
 
-When mapping is complete, stop the container with `Ctrl+C`. The map is persisted to `./map/rtabmap.db` via a Docker volume mount.
+Drive the robot around the environment manually (using Go2's controller or app) until the map covers what you need. Press `Ctrl+C` to save and exit. The map is saved to `./map/rtabmap.db`.
 
-### 3. Localization & waypoint navigation mode
-
-Load the saved map and navigate autonomously through a sequence of waypoints.
+### 3. Run autonomous navigation (Localization mode)
 
 ```bash
 ./run_localization.sh
 ```
 
-**Workflow in Foxglove Studio:**
+In Foxglove Studio:
 
-1. Open Foxglove and connect to `ws://<jetson-ip>:8765`
-2. Use **Publish Pose** to click waypoints on the map — each click adds a numbered waypoint marker
-3. When all waypoints are set, call the `/start_mission` service:
+1. Connect to `ws://<jetson-ip>:8765`
+2. Use the **Publish Pose** tool to click waypoints on the map (each click adds a numbered marker)
+3. When the waypoints are set, trigger the mission from a terminal:
 
 ```bash
-# Inside the running container
-ros2 service call /start_mission std_srvs/srv/Trigger {}
+docker exec -it go2-slam bash -c "
+    source /ros2_ws/install/setup.bash &&
+    ros2 service call /start_mission std_srvs/srv/Trigger {}"
 ```
 
 The robot navigates through the waypoints in order.
 
-**Other services:**
+### Available services
 
-```bash
-# Remove the last added waypoint
-ros2 service call /undo_waypoint std_srvs/srv/Trigger {}
+| Service | Effect |
+|---------|--------|
+| `/start_mission` | Begin navigating through queued waypoints |
+| `/undo_waypoint` | Remove the most recently added waypoint |
+| `/clear_waypoints` | Clear all waypoints (also stops an in-progress mission) |
 
-# Clear all waypoints (also stops an in-progress mission)
-ros2 service call /clear_waypoints std_srvs/srv/Trigger {}
-```
+Call any service with `ros2 service call <name> std_srvs/srv/Trigger {}` from inside the container.
+
 
 ## Configuration
 
-| File | Purpose |
+| File | What to tune |
 |------|---------|
-| `config/MID360_config.json` | LiDAR IP and port configuration |
-| `config/mid360.yaml` | FAST-LIO parameters (extrinsics, filter settings) |
-| `config/nav2_params.yaml` | Nav2 planner, controller, costmap settings |
-| `config/cyclonedds_internal.xml` | CycloneDDS loopback config for ROS2 domain isolation |
+| `config/MID360_config.json` | LiDAR IP if not on the default subnet |
+| `config/mid360.yaml` | FAST-LIO extrinsics, voxel filter size |
+| `config/nav2_params.yaml` | Planner, controller, costmap, goal tolerances |
+| `config/cyclonedds_internal.xml` | CycloneDDS loopback config (rarely needs editing) |
 
-### Tuning navigation
+### Common tuning targets
 
-Key parameters in `config/nav2_params.yaml`:
-
+**Robot oscillates along the path:**
 ```yaml
+# config/nav2_params.yaml
 controller_server:
-  ros__parameters:
-    FollowPath:
-      desired_linear_vel: 0.5      # m/s — reduce if robot oscillates
-      lookahead_dist: 1.2          # m
-      rotate_to_heading_min_angle: 0.3  # rad — min angle to rotate in place
+  FollowPath:
+    desired_linear_vel: 0.3        # Reduce from 0.5
+    lookahead_dist: 1.5            # Increase from 1.2
+```
 
+**Robot stops too far from the goal:**
+```yaml
 general_goal_checker:
-  xy_goal_tolerance: 0.3           # m
-  yaw_goal_tolerance: 0.5          # rad
+  xy_goal_tolerance: 0.2           # Reduce from 0.3
+  yaw_goal_tolerance: 0.3          # Reduce from 0.5
 ```
 
-### Velocity limits
-
-In `ros2_ws/src/go2_slam_nodes/go2_slam_nodes/robot_driver.py`:
-
+**Robot moves too fast or too slow overall:**
 ```python
-MAX_LINEAR_VEL  = 0.5   # m/s forward/backward
-MAX_LATERAL_VEL = 0.2   # m/s sideways
-MAX_YAW_VEL     = 0.8   # rad/s rotation
+# ros2_ws/src/go2_slam_nodes/go2_slam_nodes/robot_driver.py
+MAX_LINEAR_VEL  = 0.5    # Forward/backward speed (m/s)
+MAX_LATERAL_VEL = 0.2    # Sideways speed (m/s)
+MAX_YAW_VEL     = 0.8    # Rotation speed (rad/s)
 ```
 
-## Custom ROS2 Nodes (`go2_slam_nodes`)
 
-| Node | Description |
-|------|-------------|
-| `robot_driver` | Subscribes to `/cmd_vel`, forwards to `unitree_bridge.py` subprocess via JSON over stdin |
-| `unitree_bridge` | Standalone subprocess owning the Unitree SDK DDS context; receives JSON commands and calls `SportClient` |
-| `odom_2d_filter` | Converts FAST-LIO's 3D `/Odometry` to a 2D `/Odometry_2d` (zeroes z, roll, pitch) for Nav2 |
-| `waypoint_manager` | Collects waypoints from `/goal_pose`, visualizes them as markers, executes via Nav2 `FollowWaypoints` on `/start_mission` |
+## License
 
-The source is volume-mounted into the container at runtime (`--symlink-install`), so editing Python files in `ros2_ws/src/go2_slam_nodes/` takes effect immediately on node restart without rebuilding the image.
+MIT — see [LICENSE](LICENSE)
 
-## Troubleshooting
 
-**Robot not moving**
+## Acknowledgements
 
-Check that `robot_driver` is running and the bridge subprocess started:
-```bash
-docker exec -it <container> bash -c "
-  source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash &&
-  ROS_DOMAIN_ID=1 CYCLONEDDS_URI=/ros2_ws/config/cyclonedds_internal.xml \
-  ros2 node list"
-# /robot_driver should appear
-```
+This project builds on:
 
-**No LiDAR topics**
-
-Verify the MID360 IP in `config/MID360_config.json` matches your network. The LiDAR should be pingable at `192.168.123.20`.
-
-**`/start_mission` returns `Nav2 follow_waypoints server not available`**
-
-Nav2 lifecycle nodes haven't finished activating. Wait ~10 seconds after launch for the lifecycle manager to bring up all nodes, then retry.
-
-**Map not loading in localization mode**
-
-Ensure `./map/rtabmap.db` exists (created during a mapping session). The file is mounted into the container at `/ros2_ws/map/rtabmap.db`.
+- [FAST-LIO](https://github.com/hku-mars/FAST_LIO) by HKU MARS Lab
+- [livox_ros_driver2](https://github.com/Livox-SDK/livox_ros_driver2) by Livox
+- [RTABMap](https://github.com/introlab/rtabmap_ros) by IntRoLab
+- [Nav2](https://github.com/ros-planning/navigation2) by the Open Navigation community
+- [unitree_sdk2_python](https://github.com/unitreerobotics/unitree_sdk2_python) by Unitree Robotics

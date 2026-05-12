@@ -31,7 +31,7 @@ If you're deploying Nav2 on Go2 with a custom sensor stack inside Docker, this p
 ## System Architecture
 
 <p align="center">
-    <img src="docs/architecture.png" alt="System Architecture" width="500">
+    <img src="docs/architecture.png" alt="System Architecture" width="600">
 </p>
 
 ROS2 and Unitree SDK each run their own DDS instance on separate domains and network interfaces. They're isolated via `cyclonedds_internal.xml`.

@@ -1,0 +1,11 @@
+costmap_filter_server:
+  ros__parameters:
+    # Type of filter (0 = keepout, 1 = speed limit)
+    type: 0
+
+    # The actual mask topic (published by the mask server)
+    mask_topic: "/keepout_mask"
+
+    # Transformation parameters (defaults are fine)
+    base: 0.0
+    multiplier: 1.0

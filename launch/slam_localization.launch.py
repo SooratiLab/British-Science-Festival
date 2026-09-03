@@ -162,6 +162,24 @@ def generate_launch_description():
             output='screen',
             parameters=['/ros2_ws/config/nav2_params.yaml'],
         ),
+        Node(
+            package='nav2_map_server',
+            executable='map_server',
+            name='keepout_mask_server',
+            output='screen',
+            parameters=[{
+                'yaml_filename': '/ros2_ws/config/keepout_mask.yaml',
+                'topic_name': '/keepout_mask',
+                'frame_id': 'map'
+            }]
+        ),
+        Node(
+            package='nav2_map_server',
+            executable='costmap_filter_info_server',
+            name='costmap_filter_info_server',
+            output='screen',
+            parameters=['/ros2_ws/config/keepout_filter_params.yaml']
+        ),
 
         # -- 7. waypoint manager (click-to-add via /goal_pose, /start_mission service)
         Node(

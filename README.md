@@ -112,8 +112,9 @@ pip3 install websocket-client
 ### 1. Clone and build
 
 ```bash
-git clone https://github.com/yehna-kim/unitree-go2-waypoint-nav.git
-cd unitree-go2-waypoint-nav
+git clone (https://github.com/SooratiLab/British-Science-Festival.git)
+cd British-Science-Festival
+git checkout feature/festival
 docker build -t go2-slam .
 ```
 
@@ -132,7 +133,7 @@ Drive the robot around the environment manually (using Go2's controller or app) 
 ### 3. Run autonomous navigation (Localization mode)
 
 ```bash
-./run_localization.sh
+docker compose --profile localization up
 ```
 
 In Foxglove Studio:

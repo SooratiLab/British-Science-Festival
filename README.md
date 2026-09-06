@@ -46,7 +46,9 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Robot | Unitree Go2 |
 | LiDAR | Livox MID360 |
 | Compute | NVIDIA Jetson Orin NX (aarch64, Ubuntu 22.04) |
-
+| Compute (client) | Raspberry Pi 5 |
+| Audio | Speaker connected to Pi 5 |
+| Networking | Tailscale installed on both Jetson |
 
 ## Software Stack
 
@@ -58,6 +60,8 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Navigation | [Nav2](https://nav2.ros.org) |
 | Robot control | Unitree SDK2 Python |
 | Visualization | Foxglove Studio (port 8765) |
+| Remote narration | ROSbridge Server + pyttsx3 (on Pi 5) |
+| Networking | Tailscale |
 | ROS2 | Humble (via `ros:humble-ros-base` Docker image) |
 
 

@@ -48,7 +48,7 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Compute | NVIDIA Jetson Orin NX (aarch64, Ubuntu 22.04) |
 | Compute (client) | Raspberry Pi 5 |
 | Audio | Speaker connected to Pi 5 |
-| Networking | Tailscale installed on both Jetson |
+| Networking | Tailscale installed on both Jetson & Raspberry Pi |
 
 ## Software Stack
 
@@ -64,6 +64,38 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Networking | Tailscale |
 | ROS2 | Humble (via `ros:humble-ros-base` Docker image) |
 
+## Demo Zone & Keepout Filter
+
+For live demonstrations, the robot can be constrained to a specific area using a three-layer safety system:
+
+### 1. Physical Boundary
+Retractable belt barriers or gaffer tape on the floor define the physical demo zone.
+
+### 2. Nav2 Keepout Filter
+A black-and-white mask image (`config/keepout_mask.pgm`) is loaded at launch. White areas are drivable; black areas are treated as walls by **both** the global and local costmaps.
+
+To create your mask:
+1. Open your saved `map.pgm` in GIMP
+2. Create a new layer filled with pure black
+3. Select your demo zone and fill with pure white
+4. Export as `keepout_mask.pgm` (Raw format)
+5. Ensure `config/keepout_mask.yaml` has the same `resolution` and `origin` as your `map.yaml`
+
+### 3. Waypoint Bounds Checking
+`waypoint_manager.py` rejects any waypoint clicked outside the configured `ZONE_MIN_X`, `ZONE_MAX_X`, `ZONE_MIN_Y`, `ZONE_MAX_Y` bounds, and announces the rejection via TTS.
+
+### Foxglove Visualization
+The demo zone is visualized in Foxglove's 3D panel as:
+- A red rectangular boundary line
+- A semi-transparent green fill inside the zone
+- A "DEMO ZONE" text label
+
+Configure the zone coordinates in `waypoint_manager.py`:
+```python
+self.ZONE_MIN_X = -2.0
+self.ZONE_MAX_X =  2.0
+self.ZONE_MIN_Y = -2.0
+self.ZONE_MAX_Y =  2.0
 
 ## Quick Start
 

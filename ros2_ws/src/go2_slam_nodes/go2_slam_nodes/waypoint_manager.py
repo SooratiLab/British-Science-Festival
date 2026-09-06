@@ -57,6 +57,7 @@ class WaypointManager(Node):
 
         # republish markers periodically so they stay visible in Foxglove
         self.create_timer(1.0, self._publish_markers)
+        self.create_timer(1.0, self._publish_zone_boundary)
 
         self.get_logger().info(
             'Waypoint manager ready\n'
@@ -169,6 +170,7 @@ class WaypointManager(Node):
         current = feedback_msg.feedback.current_waypoint
         total = len(self.waypoints)
         self.get_logger().info(f'Navigating to waypoint [{current + 1}/{total}]')
+        self._publish_state(f'En route to waypoint {current + 1}.')
 
     def _on_goal_response(self, future):
         goal_handle = future.result()

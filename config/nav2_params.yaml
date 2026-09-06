@@ -169,7 +169,7 @@ local_costmap:
       keepout_filter:
         plugin: "nav2_costmap_2d::KeepoutFilter"
         enabled: true
-        filter_info_topic: "/keepout_costmap_filter_mask"
+        filter_info_topic: "/keepout_costmap_filter_info"
 
 global_costmap:
   global_costmap:
@@ -209,7 +209,7 @@ global_costmap:
       keepout_filter:
         plugin: "nav2_costmap_2d::KeepoutFilter"
         enabled: true
-        filter_info_topic: "/keepout_costmap_filter_mask"
+        filter_info_topic: "/keepout_costmap_filter_info"
 
 
 lifecycle_manager:

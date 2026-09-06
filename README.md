@@ -96,6 +96,16 @@ self.ZONE_MIN_X = -2.0
 self.ZONE_MAX_X =  2.0
 self.ZONE_MIN_Y = -2.0
 self.ZONE_MAX_Y =  2.0
+````
+
+## Speech Narration
+The robot announces high-level mission states aloud through a speaker attached to a Raspberry Pi 5, providing clear audio feedback for users.
+
+### Setup on Pi 5
+```bash
+sudo apt install python3-pip python3-pyttsx3 espeak-ng
+pip3 install websocket-client
+````
 
 ## Quick Start
 

@@ -165,4 +165,12 @@ def generate_launch_description():
             name='foxglove_bridge',
             output='screen',
         ),
+
+        Node(
+            package='rosbridge_server',
+            executable='rosbridge_websocket',
+            name='rosbridge_websocket',
+            output='screen',
+            parameters=[{'port': 9090}],
+        ),
     ])

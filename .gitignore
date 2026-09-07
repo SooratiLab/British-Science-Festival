@@ -10,6 +10,5 @@ ros2_ws/log/
 
 # misc
 build.log
-scripts/
 .DS_Store
 

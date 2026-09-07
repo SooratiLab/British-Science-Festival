@@ -6,6 +6,9 @@ Collects waypoints by subscribing to /goal_pose (Foxglove "Publish Pose"
 button), visualizes them as numbered markers on the map, and navigates
 through them via Nav2 FollowWaypoints on /start_mission service call.
 
+Publish readable navigation states to /nav_state for narration on Raspberry pi5
+and visualizes a demo zone boundary in Foxglove.
+
 Services:
   /undo_waypoint   (std_srvs/Trigger) - remove last added waypoint
   /clear_waypoints (std_srvs/Trigger) - remove all waypoints
@@ -13,6 +16,7 @@ Services:
 
 Publishes:
   /waypoint_markers (visualization_msgs/MarkerArray) - numbered markers on map
+  /nav_state        (std_msgs/String)                - narration state messages
 """
 from copy import deepcopy
 
@@ -20,9 +24,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped , Point 
 from visualization_msgs.msg import Marker, MarkerArray
 from std_srvs.srv import Trigger
+from std_msgs.msg import String 
 from nav2_msgs.action import FollowWaypoints
 
 
@@ -35,6 +40,7 @@ class WaypointManager(Node):
         self.create_subscription(PoseStamped, '/goal_pose', self._on_goal_pose, 10)
 
         self.marker_pub = self.create_publisher(MarkerArray, '/waypoint_markers', 10)
+        self.state_pub = self.create_publisher(String, '/nav_state', 10)
 
         self.create_service(Trigger, 'undo_waypoint', self._undo_waypoint)
         self.create_service(Trigger, 'clear_waypoints', self._clear_waypoints)
@@ -53,8 +59,14 @@ class WaypointManager(Node):
             '  ros2 service call /start_mission    std_srvs/srv/Trigger'
         )
 
-    # --- waypoint collection ---
+    # --- narration helper ---
+    def _publish_state(self,text:str):
+        msg = String()
+        msg.data = text
+        self.state_pub.publish(msg)
+        self.get_logger().info(f'[NARRATION] {text}')
 
+    # --- waypoint collection ---
     def _on_goal_pose(self, msg: PoseStamped):
         if self.mission_running:
             self.get_logger().warn(
@@ -62,6 +74,7 @@ class WaypointManager(Node):
                 'Call /clear_waypoints to reset after mission.'
             )
             return
+        
         self.waypoints.append(msg)
         n = len(self.waypoints)
         self.get_logger().info(
@@ -90,6 +103,7 @@ class WaypointManager(Node):
         self.mission_running = False
         self._publish_markers()
         self.get_logger().info('All waypoints cleared')
+        self._publish_state('Mission cancelled. All waypoints cleared.')
         response.success = True
         response.message = 'All waypoints cleared'
         return response
@@ -114,6 +128,11 @@ class WaypointManager(Node):
         self.mission_running = True
         self.get_logger().info(f'Mission started: {len(self.waypoints)} waypoints')
 
+        # Narrate mission start
+        self._publish_state(
+            f'Starting mission. Navigating to {len(self.waypoints)} waypoints.'
+        )
+
         future = self.nav_client.send_goal_async(
             goal, feedback_callback=self._on_feedback
         )
@@ -129,12 +148,14 @@ class WaypointManager(Node):
         current = feedback_msg.feedback.current_waypoint
         total = len(self.waypoints)
         self.get_logger().info(f'Navigating to waypoint [{current + 1}/{total}]')
+        self._publish_state(f'En route to waypoint {current + 1}.')
 
     def _on_goal_response(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().warn('Mission goal rejected by Nav2')
             self.mission_running = False
+            self._publish_state('Mission rejected by navigation system.')
             return
         goal_handle.get_result_async().add_done_callback(self._on_result)
 
@@ -142,9 +163,12 @@ class WaypointManager(Node):
         missed = future.result().result.missed_waypoints
         if missed:
             self.get_logger().warn(f'Mission complete. Missed waypoints: {list(missed)}')
+            self._publish_state(f'Mission complete, but missed {len(missed)} waypoints.')
         else:
             self.get_logger().info('Mission complete. All waypoints reached.')
+            self._publish_state('Mission completed.')
         self.mission_running = False
+
 
     # --- marker visualization ---
 
@@ -154,7 +178,7 @@ class WaypointManager(Node):
         # clear all previous markers
         clear = Marker()
         clear.action = Marker.DELETEALL
-        clear.ns = ''
+        clear.ns = 'waypoints'
         marker_array.markers.append(clear)
 
         now = self.get_clock().now().to_msg()

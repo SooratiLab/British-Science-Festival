@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 	ros-humble-tf2-ros \
 	ros-humble-tf2-tools \
 	ros-humble-foxglove-bridge \
+	ros-humble-rosbridge-server \
 	python3-pip \
 	python3-gi python3-gi-cairo \
     gstreamer1.0-tools \

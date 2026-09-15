@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-narrator.py
+Runs on the Raspberry Pi 5, connects over
+Tailscale to rosbridge on the Jetson, subscribes to /nav_state, and
+speaks each message aloud using Text-to-Speech.
 
-Subscribes to /nav_state via ROSbridge WebSocket on the Jetson
-and speaks each message aloud using Text-to-Speech.
+Requires JETSON_IP to be set to the Jetson's Tailscale IP:
+JETSON_IP=100.x.x.x python3 narrator.py
+
+See scripts/requirements.txt for dependencies.
 """
+
 import json
 import os
 import threading
@@ -21,7 +26,7 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 150)
 engine.setProperty('volume', 1.0)
 voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[1].id)
+engine.setProperty('voice', voices[0].id)
 
 speak_queue = []
 is_speaking = False

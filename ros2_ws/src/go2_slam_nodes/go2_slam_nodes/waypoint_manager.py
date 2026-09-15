@@ -73,7 +73,7 @@ class WaypointManager(Node):
                 'Mission in progress — waypoint not added. '
                 'Call /clear_waypoints to reset after mission.'
             )
-            self._publish_state('Mission in progress. Waypoint not added.')
+            #self._publish_state('Mission in progress. Waypoint not added.')
             return
         
         self.waypoints.append(msg)
@@ -82,7 +82,7 @@ class WaypointManager(Node):
             f'Waypoint [{n}] added: '
             f'x={msg.pose.position.x:.2f}, y={msg.pose.position.y:.2f}'
         )
-        self._publish_state(f'Waypoint {n} added.') 
+        #self._publish_state(f'Waypoint {n} added.') 
         self._publish_markers()
 
     # --- services ---
@@ -150,14 +150,14 @@ class WaypointManager(Node):
         current = feedback_msg.feedback.current_waypoint
         total = len(self.waypoints)
         self.get_logger().info(f'Navigating to waypoint [{current + 1}/{total}]')
-        self._publish_state(f'En route to waypoint {current + 1}.')
+        #self._publish_state(f'En route to waypoint {current + 1}.')
 
     def _on_goal_response(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().warn('Mission goal rejected by Nav2')
             self.mission_running = False
-            self._publish_state('Mission rejected by navigation system.')
+            #self._publish_state('Mission rejected by navigation system.')
             return
         goal_handle.get_result_async().add_done_callback(self._on_result)
 
@@ -165,7 +165,8 @@ class WaypointManager(Node):
         missed = future.result().result.missed_waypoints
         if missed:
             self.get_logger().warn(f'Mission complete. Missed waypoints: {list(missed)}')
-            self._publish_state(f'Mission complete, but missed {len(missed)} waypoints.')
+            #self._publish_state(f'Mission complete, but missed {len(missed)} waypoints.')
+            self._publish_state('Mission completed.')
         else:
             self.get_logger().info('Mission complete. All waypoints reached.')
             self._publish_state('Mission completed.')

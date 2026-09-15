@@ -3,10 +3,6 @@
 # to the Jetson's rosbridge over Tailscale).
 #
 #   pip install -r requirements.txt
-#
-# pyttsx3 uses espeak as its TTS backend on Linux; if `pip install pyttsx3`
-# doesn't produce audio, install the system package too:
 #   sudo apt install espeak
 
-pyttsx3>=2.90
 websocket-client>=1.6

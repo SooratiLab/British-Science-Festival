@@ -1,0 +1,12 @@
+# Dependencies for narrator.py — install these on the Raspberry Pi 5,
+# not on the Jetson (narrator.py runs standalone on the Pi 5 and connects
+# to the Jetson's rosbridge over Tailscale).
+#
+#   pip install -r requirements.txt
+#
+# pyttsx3 uses espeak as its TTS backend on Linux; if `pip install pyttsx3`
+# doesn't produce audio, install the system package too:
+#   sudo apt install espeak
+
+pyttsx3>=2.90
+websocket-client>=1.6

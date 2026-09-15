@@ -46,6 +46,7 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Robot | Unitree Go2 |
 | LiDAR | Livox MID360 |
 | Compute | NVIDIA Jetson Orin NX (aarch64, Ubuntu 22.04) |
+| Visualization | NRaspberry Pi5 |
 
 
 ## Software Stack
@@ -92,8 +93,9 @@ mission is running.
 ### 1. Clone and build
 
 ```bash
-git clone https://github.com/yehna-kim/unitree-go2-waypoint-nav.git
-cd unitree-go2-waypoint-nav
+git clone https://github.com/SooratiLab/British-Science-Festival.git
+cd British-Science-Festival
+git checkout feature/narrator
 docker build -t go2-slam .
 ```
 
@@ -110,6 +112,8 @@ In a separate terminal, open Foxglove Studio and connect to `ws://<jetson-ip>:87
 Drive the robot around the environment manually (using Go2's controller or app) until the map covers what you need. Press `Ctrl+C` to save and exit. The map is saved to `./map/rtabmap.db`.
 
 ### 3. Run autonomous navigation (Localization mode)
+
+ **METHOD 1**
 
 ```bash
 ./run_localization.sh
@@ -129,6 +133,22 @@ docker exec -it go2-slam bash -c "
 
 The robot navigates through the waypoints in order.
 
+** METHOD 2 **
+
+```bash
+./run_localization.sh
+```
+
+In Foxglove Studio:
+
+1. Connect to `ws://<jetson-ip>:8765`
+2. Use the **Publish Pose** tool to click waypoints on the map (each click adds a numbered marker)
+3. Add a **Call Service** panel, also connected to `ws://<jetson-ip>:8765`
+4. When the waypoints are set, select `/start_mission` in the panel and call it with an empty `{}` request
+
+The robot navigates through the waypoints in order. `/undo_waypoint` and `/clear_waypoints` work the same way from the same panel 
+
+
 ### Available services
 
 | Service | Effect |
@@ -138,7 +158,8 @@ The robot navigates through the waypoints in order.
 | `/clear_waypoints` | Clear all waypoints (also stops an in-progress mission) |
 
 Call any service with `ros2 service call <name> std_srvs/srv/Trigger {}` from inside the container.
-
+**OR**
+Call any service from Foxglove's **Call Service** panel
 
 ## Configuration
 

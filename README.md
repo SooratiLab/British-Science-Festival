@@ -60,6 +60,32 @@ ROS2 and Unitree SDK each run their own DDS instance on separate domains and net
 | Visualization | Foxglove Studio (port 8765) |
 | ROS2 | Humble (via `ros:humble-ros-base` Docker image) |
 
+## Speech Narration
+Narration runs on a Raspberry Pi 5, not on the Jetson. The Jetson
+publishes readable status messages on `/nav_state`, and `rosbridge_websocket`
+(started automatically by `slam_localization.launch.py` on port 9090) exposes
+them over the network. The Pi 5 connects to that bridge over Tailscale and
+speaks each message aloud.
+
+On the Pi 5:
+
+```bash
+cd scripts
+pip install -r requirements.txt
+sudo apt install espeak          # TTS backend for pyttsx3 on Linux
+
+JETSON_IP=100.x.x.x python3 narrator.py
+```
+
+`JETSON_IP` must be the Jetson's **Tailscale** IP. The script exits immediately
+with a clear error if it isn't set.
+
+Start the narrator *before* calling `/start_mission` — rosbridge does not replay
+missed messages, so anything published before the Pi 5 connects is not spoken.
+
+Narrated events: waypoint added, waypoint removed, mission start, per-waypoint
+progress, mission complete, mission cancelled, and waypoint rejected while a
+mission is running.
 
 ## Quick Start
 

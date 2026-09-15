@@ -13,20 +13,14 @@ See scripts/requirements.txt for dependencies.
 import json
 import os
 import threading
+import subprocess
 import time
 
 import websocket
-import pyttsx3
-
 
 JETSON_TAILSCALE_IP = os.environ.get('JETSON_IP')
 WS_URL = f"ws://{JETSON_TAILSCALE_IP}:9090"
-
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)
-engine.setProperty('volume', 1.0)
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)
+SPEECH_RATE = 150
 
 speak_queue = []
 is_speaking = False
@@ -37,8 +31,10 @@ def speak(text: str):
     global is_speaking
     with queue_lock:
         speak_queue.append(text)
-    if not is_speaking:
-        threading.Thread(target=_process_queue, daemon=True).start()
+        if is_speaking:
+            return
+        is_speaking = True
+    threading.Thread(target=_process_queue, daemon=True).start()
 
 """Process the speech queue one message at a time."""
 def _process_queue():
@@ -51,8 +47,12 @@ def _process_queue():
                 break
             text = speak_queue.pop(0)
         print(f'Narrating: {text}')
-        engine.say(text)
-        engine.runAndWait()
+        try:
+            subprocess.run(['espeak', '-s', str(SPEECH_RATE), text], check=True)
+        except FileNotFoundError:
+            print('espeak not found.')
+        except subprocess.CalledProcessError as e:
+            print(f'espeak failed: {e}')
         time.sleep(0.5)
 
 """Handle incoming WebSocket messages from ROSbridge."""

@@ -73,6 +73,7 @@ class WaypointManager(Node):
                 'Mission in progress — waypoint not added. '
                 'Call /clear_waypoints to reset after mission.'
             )
+            self._publish_state('Mission in progress. Waypoint not added.')
             return
         
         self.waypoints.append(msg)
@@ -81,6 +82,7 @@ class WaypointManager(Node):
             f'Waypoint [{n}] added: '
             f'x={msg.pose.position.x:.2f}, y={msg.pose.position.y:.2f}'
         )
+        self._publish_state(f'Waypoint {n} added.') 
         self._publish_markers()
 
     # --- services ---
@@ -94,8 +96,8 @@ class WaypointManager(Node):
         self._publish_markers()
         n = len(self.waypoints)
         self.get_logger().info(f'Last waypoint removed ({n} remaining)')
-        response.success = True
         response.message = f'{n} waypoint(s) remaining'
+        response.success = True
         return response
 
     def _clear_waypoints(self, request, response):
